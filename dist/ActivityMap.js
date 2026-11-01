@@ -19,11 +19,15 @@ const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'Jul
 const makeMonths = (year) => monthNames.map((label, month) => {
     const firstDay = new Date(Date.UTC(year, month, 1));
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-    const days = Array.from({ length: firstDay.getUTCDay() }, () => null);
-    for (let day = 1; day <= daysInMonth; day += 1) {
-        days.push(dateKey(new Date(Date.UTC(year, month, day))));
+    const weeks = [];
+    const totalWeeks = Math.ceil((firstDay.getUTCDay() + daysInMonth) / 7);
+    for (let week = 0; week < totalWeeks; week += 1) {
+        weeks.push(Array.from({ length: 7 }, (_, weekday) => {
+            const day = week * 7 + weekday - firstDay.getUTCDay() + 1;
+            return day > 0 && day <= daysInMonth ? dateKey(new Date(Date.UTC(year, month, day))) : null;
+        }));
     }
-    return { label, days };
+    return { label, weeks };
 });
 const defaultStyles = {
     root: { color: '#e8eef5', background: '#111820', border: '1px solid #293541', borderRadius: 12, padding: 20, fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
@@ -35,12 +39,12 @@ const defaultStyles = {
     reload: { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 4, color: '#8fa0ad', cursor: 'pointer', display: 'inline-flex', fontSize: 16, height: 28, justifyContent: 'center', marginLeft: -4, padding: 0, width: 28 },
     gridWrap: { marginTop: 24, overflowX: 'auto', paddingBottom: 4 },
     grid: { display: 'grid', gridAutoFlow: 'column', gridTemplateRows: 'repeat(7, 13px)', gap: 3, minWidth: 700 },
-    month: { background: '#151f28', border: '1px solid #263541', borderRadius: 8, minWidth: 190, padding: 12 },
-    monthTitle: { color: '#e8eef5', fontSize: 13, fontWeight: 600, margin: '0 0 10px' },
+    month: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 },
+    monthTitle: { color: '#aebbc5', fontSize: 12, fontWeight: 500, margin: 0, textAlign: 'center' },
     weekdays: { color: '#71818d', display: 'grid', fontSize: 10, gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 5, textAlign: 'center' },
     weekday: { fontSize: 10 },
-    monthGrid: { display: 'grid', gap: 4, gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' },
-    cell: { borderRadius: 2, height: 13, width: 13 },
+    monthGrid: { display: 'grid', gridAutoFlow: 'column', gridTemplateRows: 'repeat(7, 11px)', gap: 3 },
+    cell: { borderRadius: 2, height: 11, width: 11 },
     legend: { alignItems: 'center', color: '#8fa0ad', display: 'flex', fontSize: 11, gap: 5, justifyContent: 'flex-end', marginTop: 13 },
     dot: { borderRadius: 2, display: 'inline-block', height: 11, width: 11 },
     status: { color: '#8fa0ad', fontSize: 12, marginTop: 14, minHeight: 18 }
@@ -117,9 +121,9 @@ export function ActivityMap({ usernames, initialPlatforms = Object.keys(username
     return (_jsxs("section", { className: className, style: { ...componentStyles.root, ...style }, "aria-label": `${title} activity map`, children: [_jsxs("div", { style: componentStyles.header, children: [_jsxs("div", { children: [_jsx("h2", { style: componentStyles.title, children: title }), _jsxs("p", { style: componentStyles.subtitle, children: [year, " \u00B7 ", selected.length, " platform", selected.length === 1 ? '' : 's'] })] }), _jsx("div", { style: componentStyles.controls, role: "group", "aria-label": "Activity platforms", children: availablePlatforms.map((platform) => {
                             const active = selected.includes(platform);
                             return _jsxs("span", { style: { display: 'inline-flex', alignItems: 'center' }, children: [_jsxs("button", { type: "button", "aria-pressed": active, onClick: () => toggle(platform), style: { ...componentStyles.toggle, borderColor: active ? componentColors[platform] : '#334351', color: active ? '#fff' : '#9aabb8' }, children: [_jsx("span", { "aria-hidden": "true", style: { ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' } }), platformLabels[platform]] }), _jsx("button", { type: "button", "aria-label": `Reload ${platformLabels[platform]} activity`, title: `Reload ${platformLabels[platform]} activity`, onClick: () => reload(platform), style: componentStyles.reload, children: "\u21BB" })] }, platform);
-                        }) })] }), _jsx("div", { style: componentStyles.gridWrap, children: _jsx("div", { style: { display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }, role: "grid", "aria-label": `${year} monthly activity`, children: months.map((month) => _jsxs("section", { style: componentStyles.month, "aria-label": `${month.label} ${year}`, children: [_jsx("h3", { style: componentStyles.monthTitle, children: month.label }), _jsx("div", { style: componentStyles.weekdays, "aria-hidden": "true", children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((weekday, index) => _jsx("span", { style: componentStyles.weekday, children: weekday }, `${weekday}-${index}`)) }), _jsx("div", { style: componentStyles.monthGrid, children: month.days.map((day, index) => {
+                        }) })] }), _jsx("div", { style: componentStyles.gridWrap, children: _jsx("div", { style: { display: 'flex', gap: 16, minWidth: 'max-content', padding: '4px 8px 0' }, role: "grid", "aria-label": `${year} monthly activity`, children: months.map((month) => _jsxs("section", { style: componentStyles.month, "aria-label": `${month.label} ${year}`, children: [_jsx("div", { style: componentStyles.monthGrid, children: month.weeks.flatMap((week) => week).map((day, index) => {
                                     const item = day ? counts.get(day) : undefined;
                                     const intensity = item ? Math.min(1, item.count / maxCount) : 0;
-                                    return _jsx("div", { role: day ? 'gridcell' : undefined, "aria-hidden": !day, title: day ? `${day}: ${item?.count ?? 0} activities` : undefined, style: { ...componentStyles.cell, height: 'auto', minHeight: 22, width: 'auto', background: day ? item ? `color-mix(in srgb, ${componentColors.high} ${Math.round(25 + intensity * 75)}%, ${componentColors.empty})` : componentColors.empty : 'transparent' } }, `${month.label}-${index}`);
-                                }) })] }, month.label)) }) }), showLegend && _jsxs("div", { style: componentStyles.legend, children: [_jsx("span", { children: "Less" }), _jsx("i", { style: { ...componentStyles.dot, background: componentColors.empty } }), _jsx("i", { style: { ...componentStyles.dot, background: componentColors.low } }), _jsx("i", { style: { ...componentStyles.dot, background: componentColors.high } }), _jsx("span", { children: "More" })] }), _jsx("div", { style: componentStyles.status, "aria-live": "polite", children: loading ? 'Loading activity...' : error ? error : selected.length === 0 ? 'Select a platform to begin.' : `${[...counts.values()].reduce((total, item) => total + item.count, 0)} activities combined` })] }));
+                                    return _jsx("div", { role: day ? 'gridcell' : undefined, "aria-hidden": !day, title: day ? `${day}: ${item?.count ?? 0} activities` : undefined, style: { ...componentStyles.cell, background: day ? item ? `color-mix(in srgb, ${componentColors.high} ${Math.round(25 + intensity * 75)}%, ${componentColors.empty})` : componentColors.empty : 'transparent' } }, `${month.label}-${index}`);
+                                }) }), _jsx("h3", { style: componentStyles.monthTitle, children: month.label.slice(0, 3) })] }, month.label)) }) }), showLegend && _jsxs("div", { style: componentStyles.legend, children: [_jsx("span", { children: "Less" }), _jsx("i", { style: { ...componentStyles.dot, background: componentColors.empty } }), _jsx("i", { style: { ...componentStyles.dot, background: componentColors.low } }), _jsx("i", { style: { ...componentStyles.dot, background: componentColors.high } }), _jsx("span", { children: "More" })] }), _jsx("div", { style: componentStyles.status, "aria-live": "polite", children: loading ? 'Loading activity...' : error ? error : selected.length === 0 ? 'Select a platform to begin.' : `${[...counts.values()].reduce((total, item) => total + item.count, 0)} activities combined` })] }));
 }
