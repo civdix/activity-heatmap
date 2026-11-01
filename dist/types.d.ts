@@ -19,6 +19,11 @@ export type ActivityMapStyles = Partial<{
     reload: CSSProperties;
     gridWrap: CSSProperties;
     grid: CSSProperties;
+    month: CSSProperties;
+    monthTitle: CSSProperties;
+    weekdays: CSSProperties;
+    weekday: CSSProperties;
+    monthGrid: CSSProperties;
     cell: CSSProperties;
     legend: CSSProperties;
     dot: CSSProperties;

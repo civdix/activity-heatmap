@@ -20,18 +20,17 @@ const allPlatforms: Platform[] = ['leetcode', 'github', 'codeforces', 'geeksforg
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 
-const makeDays = (year: number) => {
-  const firstDay = new Date(Date.UTC(year, 0, 1));
-  const start = new Date(firstDay);
-  start.setUTCDate(firstDay.getUTCDate() - firstDay.getUTCDay());
-  const days: string[] = [];
-  for (let index = 0; index < 371; index += 1) {
-    const day = new Date(start);
-    day.setUTCDate(start.getUTCDate() + index);
-    days.push(dateKey(day));
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+const makeMonths = (year: number) => monthNames.map((label, month) => {
+  const firstDay = new Date(Date.UTC(year, month, 1));
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const days: Array<string | null> = Array.from({ length: firstDay.getUTCDay() }, () => null);
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    days.push(dateKey(new Date(Date.UTC(year, month, day))));
   }
-  return days;
-};
+  return { label, days };
+});
 
 const defaultStyles: Required<ActivityMapStyles> = {
   root: { color: '#e8eef5', background: '#111820', border: '1px solid #293541', borderRadius: 12, padding: 20, fontFamily: 'ui-sans-serif, system-ui, sans-serif' },
@@ -43,6 +42,11 @@ const defaultStyles: Required<ActivityMapStyles> = {
   reload: { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 4, color: '#8fa0ad', cursor: 'pointer', display: 'inline-flex', fontSize: 16, height: 28, justifyContent: 'center', marginLeft: -4, padding: 0, width: 28 },
   gridWrap: { marginTop: 24, overflowX: 'auto' as const, paddingBottom: 4 },
   grid: { display: 'grid', gridAutoFlow: 'column' as const, gridTemplateRows: 'repeat(7, 13px)', gap: 3, minWidth: 700 },
+  month: { background: '#151f28', border: '1px solid #263541', borderRadius: 8, minWidth: 190, padding: 12 },
+  monthTitle: { color: '#e8eef5', fontSize: 13, fontWeight: 600, margin: '0 0 10px' },
+  weekdays: { color: '#71818d', display: 'grid', fontSize: 10, gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 5, textAlign: 'center' as const },
+  weekday: { fontSize: 10 },
+  monthGrid: { display: 'grid', gap: 4, gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' },
   cell: { borderRadius: 2, height: 13, width: 13 },
   legend: { alignItems: 'center', color: '#8fa0ad', display: 'flex', fontSize: 11, gap: 5, justifyContent: 'flex-end', marginTop: 13 },
   dot: { borderRadius: 2, display: 'inline-block', height: 11, width: 11 },
@@ -83,7 +87,7 @@ export function ActivityMap({
   const reloadPlatformRef = useRef<Platform | null>(null);
   usernamesRef.current = usernames;
   adaptersRef.current = adapters;
-  const days = useMemo(() => makeDays(year), [year]);
+  const months = useMemo(() => makeMonths(year), [year]);
   const componentStyles = { ...defaultStyles, ...styles };
   const componentColors = { ...defaultColors, ...colors };
 
@@ -155,12 +159,18 @@ export function ActivityMap({
         </div>
       </div>
       <div style={componentStyles.gridWrap}>
-        <div style={componentStyles.grid} role="grid" aria-label={`${year} daily activity`}>
-          {days.map((day) => {
-            const item = counts.get(day);
-            const intensity = item ? Math.min(1, item.count / maxCount) : 0;
-            return <div key={day} role="gridcell" title={`${day}: ${item?.count ?? 0} activities`} style={{ ...componentStyles.cell, background: item ? `color-mix(in srgb, ${componentColors.high} ${Math.round(25 + intensity * 75)}%, ${componentColors.empty})` : componentColors.empty }} />;
-          })}
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }} role="grid" aria-label={`${year} monthly activity`}>
+          {months.map((month) => <section key={month.label} style={componentStyles.month} aria-label={`${month.label} ${year}`}>
+            <h3 style={componentStyles.monthTitle}>{month.label}</h3>
+            <div style={componentStyles.weekdays} aria-hidden="true">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((weekday, index) => <span key={`${weekday}-${index}`} style={componentStyles.weekday}>{weekday}</span>)}</div>
+            <div style={componentStyles.monthGrid}>
+              {month.days.map((day, index) => {
+                const item = day ? counts.get(day) : undefined;
+                const intensity = item ? Math.min(1, item.count / maxCount) : 0;
+                return <div key={`${month.label}-${index}`} role={day ? 'gridcell' : undefined} aria-hidden={!day} title={day ? `${day}: ${item?.count ?? 0} activities` : undefined} style={{ ...componentStyles.cell, height: 'auto', minHeight: 22, width: 'auto', background: day ? item ? `color-mix(in srgb, ${componentColors.high} ${Math.round(25 + intensity * 75)}%, ${componentColors.empty})` : componentColors.empty : 'transparent' }} />;
+              })}
+            </div>
+          </section>)}
         </div>
       </div>
       {showLegend && <div style={componentStyles.legend}><span>Less</span><i style={{ ...componentStyles.dot, background: componentColors.empty }} /><i style={{ ...componentStyles.dot, background: componentColors.low }} /><i style={{ ...componentStyles.dot, background: componentColors.high }} /><span>More</span></div>}

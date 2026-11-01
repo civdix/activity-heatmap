@@ -99,7 +99,7 @@ Use `style` for the outer element, or override individual internal slots with `s
 />
 ```
 
-Available style slots are `root`, `header`, `title`, `subtitle`, `controls`, `toggle`, `reload`, `gridWrap`, `grid`, `cell`, `legend`, `dot`, and `status`.
+The activity is presented as twelve month blocks with weekday headings and valid calendar dates. Available style slots are `root`, `header`, `title`, `subtitle`, `controls`, `toggle`, `reload`, `gridWrap`, `grid`, `month`, `monthTitle`, `weekdays`, `weekday`, `monthGrid`, `cell`, `legend`, `dot`, and `status`.
 
 Available color keys are the four platform names plus `empty`, `low`, and `high`.
 
