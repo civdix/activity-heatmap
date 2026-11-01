@@ -23,11 +23,32 @@ const github: ActivityAdapter = {
 
 const leetcode: ActivityAdapter = {
   platform: 'leetcode',
-  async fetchActivity(username, signal) {
-    const response = await fetch(`https://alfa-leetcode-api.onrender.com/user/${encodeURIComponent(username)}/calendar`, { signal });
+  async fetchActivity(username, signal, year) {
+    const response = await fetch('https://leetcode.com/graphql/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `query userProfileCalendar($username: String!, $year: Int) {
+          matchedUser(username: $username) {
+            userCalendar(year: $year) {
+              submissionCalendar
+            }
+          }
+        }`,
+        variables: { username, ...(year ? { year } : {}) },
+        operationName: 'userProfileCalendar'
+      }),
+      signal
+    });
     if (!response.ok) throw new Error(`LeetCode returned ${response.status}`);
-    const payload = (await response.json()) as { submissionCalendar?: Record<string, number> };
-    return normalize('leetcode', Object.entries(payload.submissionCalendar ?? {}).map(([timestamp, count]) => ({
+    const payload = (await response.json()) as {
+      errors?: Array<{ message?: string }>;
+      data?: { matchedUser?: { userCalendar?: { submissionCalendar?: string | Record<string, number> } } };
+    };
+    if (payload.errors?.length) throw new Error(payload.errors[0].message ?? 'LeetCode rejected the username');
+    const rawCalendar = payload.data?.matchedUser?.userCalendar?.submissionCalendar ?? {};
+    const calendar = typeof rawCalendar === 'string' ? JSON.parse(rawCalendar) as Record<string, number> : rawCalendar;
+    return normalize('leetcode', Object.entries(calendar).map(([timestamp, count]) => ({
       date: new Date(Number(timestamp) * 1000).toISOString().slice(0, 10),
       count
     })));
@@ -52,11 +73,24 @@ const codeforces: ActivityAdapter = {
 
 const geeksforgeeks: ActivityAdapter = {
   platform: 'geeksforgeeks',
-  async fetchActivity(username, signal) {
-    const response = await fetch(`https://gfg-stats-api.vercel.app/${encodeURIComponent(username)}`, { signal });
+  async fetchActivity(username, signal, year = new Date().getFullYear()) {
+    const response = await fetch('https://practiceapi.geeksforgeeks.org/api/v1/user/problems/submissions/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle: username, requestType: 'getYearwiseUserSubmissions', year: String(year), month: '' }),
+      signal
+    });
     if (!response.ok) throw new Error(`GeeksforGeeks returned ${response.status}`);
-    const payload = (await response.json()) as { activity?: Array<{ date: string; count: number }> };
-    return normalize('geeksforgeeks', payload.activity ?? []);
+    const payload = (await response.json()) as {
+      result?: unknown;
+      data?: unknown;
+      submissions?: unknown;
+    };
+    const records = (Array.isArray(payload) ? payload : payload.result ?? payload.data ?? payload.submissions ?? []) as Array<Record<string, unknown>>;
+    return normalize('geeksforgeeks', records.map((record) => ({
+      date: String(record.date ?? record.submissionDate ?? record.submittedAt ?? ''),
+      count: Number(record.count ?? record.submissionCount ?? record.submissions ?? 1)
+    })));
   }
 };
 

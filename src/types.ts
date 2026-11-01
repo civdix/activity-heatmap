@@ -10,7 +10,7 @@ export type ActivityDay = {
 
 export type ActivityAdapter = {
   platform: Platform;
-  fetchActivity: (username: string, signal?: AbortSignal) => Promise<ActivityDay[]>;
+  fetchActivity: (username: string, signal?: AbortSignal, year?: number) => Promise<ActivityDay[]>;
 };
 
 export type ActivityMapStyles = Partial<{

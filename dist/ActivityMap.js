@@ -65,7 +65,7 @@ export function ActivityMap({ usernames, initialPlatforms = Object.keys(username
         setError(null);
         Promise.all(activePlatforms.map(async (platform) => {
             const adapter = adapters[platform] ?? defaultAdapters[platform];
-            return adapter.fetchActivity(usernames[platform], controller.signal);
+            return adapter.fetchActivity(usernames[platform], controller.signal, year);
         }))
             .then((results) => setActivity(results.flat()))
             .catch((reason) => {
@@ -74,7 +74,7 @@ export function ActivityMap({ usernames, initialPlatforms = Object.keys(username
         })
             .finally(() => setLoading(false));
         return () => controller.abort();
-    }, [adapters, selected, usernames]);
+    }, [adapters, selected, usernames, year]);
     const counts = useMemo(() => {
         const merged = new Map();
         for (const item of activity) {

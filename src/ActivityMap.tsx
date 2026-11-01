@@ -85,7 +85,7 @@ export function ActivityMap({
     setError(null);
     Promise.all(activePlatforms.map(async (platform) => {
       const adapter = adapters[platform] ?? defaultAdapters[platform];
-      return adapter.fetchActivity(usernames[platform]!, controller.signal);
+      return adapter.fetchActivity(usernames[platform]!, controller.signal, year);
     }))
       .then((results) => setActivity(results.flat()))
       .catch((reason: unknown) => {
@@ -93,7 +93,7 @@ export function ActivityMap({
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [adapters, selected, usernames]);
+  }, [adapters, selected, usernames, year]);
 
   const counts = useMemo(() => {
     const merged = new Map<string, { count: number; platforms: Partial<Record<Platform, number>> }>();
