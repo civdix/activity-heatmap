@@ -1,2 +1,2 @@
 export { ActivityMap } from './ActivityMap';
-export { defaultAdapters } from './adapters';
+export { createProxyAdapter, defaultAdapters } from './adapters';

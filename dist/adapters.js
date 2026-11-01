@@ -6,6 +6,29 @@ const normalize = (platform, values) => values
     count: Math.max(0, Math.round(item.count)),
     platforms: { ...item.platforms, [platform]: Math.max(0, Math.round(item.count)) }
 }));
+const platformLabels = {
+    leetcode: 'LeetCode',
+    github: 'GitHub',
+    codeforces: 'Codeforces',
+    geeksforgeeks: 'GeeksforGeeks'
+};
+export const createProxyAdapter = (platform, endpoint) => ({
+    platform,
+    async fetchActivity(username, signal, year) {
+        const query = new URLSearchParams({ handle: username, ...(year ? { year: String(year) } : {}) });
+        const response = await fetch(`${endpoint}${endpoint.includes('?') ? '&' : '?'}${query.toString()}`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+            signal
+        });
+        if (!response.ok)
+            throw new Error(`${platformLabels[platform]} proxy returned ${response.status}`);
+        const payload = await response.json();
+        if (!Array.isArray(payload))
+            throw new Error(`${platformLabels[platform]} proxy must return an activity array`);
+        return normalize(platform, payload);
+    }
+});
 const github = {
     platform: 'github',
     async fetchActivity(username, signal) {

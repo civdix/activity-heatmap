@@ -162,6 +162,35 @@ Dates must use `YYYY-MM-DD`. The optional `platforms` field can be used when an 
 }
 ```
 
+### Same-origin proxy adapter
+
+For a production portfolio, use the included `createProxyAdapter` helper to call your own backend instead of calling an external platform from the browser:
+
+```tsx
+import { ActivityMap, createProxyAdapter } from 'coding-activity-map';
+
+const geeksforgeeksAdapter = createProxyAdapter(
+  'geeksforgeeks',
+  '/api/activity/geeksforgeeks'
+);
+
+<ActivityMap
+  usernames={{ geeksforgeeks: 'your-handle' }}
+  adapters={{ geeksforgeeks: geeksforgeeksAdapter }}
+/>
+```
+
+The helper sends `handle` and `year` query parameters and expects your backend to return:
+
+```json
+[
+  { "date": "2025-01-01", "count": 3 },
+  { "date": "2025-01-02", "count": 1 }
+]
+```
+
+Your backend can then call the GeeksforGeeks or LeetCode endpoint server-side, where CORS does not apply, and cache the result before returning it to the portfolio.
+
 ## Built-in endpoints and production considerations
 
 The built-in adapters currently use these endpoints:
