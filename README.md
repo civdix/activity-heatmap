@@ -99,7 +99,7 @@ Use `style` for the outer element, or override individual internal slots with `s
 />
 ```
 
-Available style slots are `root`, `header`, `title`, `subtitle`, `controls`, `toggle`, `gridWrap`, `grid`, `cell`, `legend`, `dot`, and `status`.
+Available style slots are `root`, `header`, `title`, `subtitle`, `controls`, `toggle`, `reload`, `gridWrap`, `grid`, `cell`, `legend`, `dot`, and `status`.
 
 Available color keys are the four platform names plus `empty`, `low`, and `high`.
 

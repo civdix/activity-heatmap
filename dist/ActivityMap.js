@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultAdapters } from './adapters';
 const platformLabels = {
     leetcode: 'LeetCode',
@@ -34,6 +34,7 @@ const defaultStyles = {
     subtitle: { color: '#8fa0ad', fontSize: 13, margin: '5px 0 0' },
     controls: { display: 'flex', flexWrap: 'wrap', gap: 8 },
     toggle: { alignItems: 'center', background: '#18222c', border: '1px solid #334351', borderRadius: 6, color: '#cbd6df', cursor: 'pointer', display: 'inline-flex', fontSize: 12, gap: 7, padding: '7px 9px' },
+    reload: { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 4, color: '#8fa0ad', cursor: 'pointer', display: 'inline-flex', fontSize: 16, height: 28, justifyContent: 'center', marginLeft: -4, padding: 0, width: 28 },
     gridWrap: { marginTop: 24, overflowX: 'auto', paddingBottom: 4 },
     grid: { display: 'grid', gridAutoFlow: 'column', gridTemplateRows: 'repeat(7, 13px)', gap: 3, minWidth: 700 },
     cell: { borderRadius: 2, height: 13, width: 13 },
@@ -51,46 +52,68 @@ const defaultColors = {
     high: '#72d39a'
 };
 export function ActivityMap({ usernames, initialPlatforms = Object.keys(usernames), adapters = {}, year = new Date().getFullYear(), className, style, styles = {}, colors = {}, title = 'Coding activity', showLegend = true }) {
-    const [selected, setSelected] = useState(initialPlatforms.filter((platform) => allPlatforms.includes(platform)));
-    const [activity, setActivity] = useState([]);
+    const usernameKey = allPlatforms.map((platform) => `${platform}:${usernames[platform] ?? ''}`).join('|');
+    const availablePlatforms = useMemo(() => allPlatforms.filter((platform) => Boolean(usernames[platform]?.trim())), [usernameKey]);
+    const [selected, setSelected] = useState(initialPlatforms.filter((platform) => allPlatforms.includes(platform) && Boolean(usernames[platform]?.trim())));
+    const [activityByPlatform, setActivityByPlatform] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [reloadNonce, setReloadNonce] = useState(0);
+    const usernamesRef = useRef(usernames);
+    const adaptersRef = useRef(adapters);
+    const reloadPlatformRef = useRef(null);
+    usernamesRef.current = usernames;
+    adaptersRef.current = adapters;
     const days = useMemo(() => makeDays(year), [year]);
     const componentStyles = { ...defaultStyles, ...styles };
     const componentColors = { ...defaultColors, ...colors };
     useEffect(() => {
         const controller = new AbortController();
-        const activePlatforms = selected.filter((platform) => usernames[platform]);
+        const activePlatforms = selected.filter((platform) => availablePlatforms.includes(platform));
+        const requestedPlatform = reloadPlatformRef.current;
+        reloadPlatformRef.current = null;
+        const platformsToFetch = requestedPlatform && activePlatforms.includes(requestedPlatform) ? [requestedPlatform] : activePlatforms;
         setLoading(true);
         setError(null);
-        Promise.all(activePlatforms.map(async (platform) => {
-            const adapter = adapters[platform] ?? defaultAdapters[platform];
-            return adapter.fetchActivity(usernames[platform], controller.signal, year);
+        Promise.all(platformsToFetch.map(async (platform) => {
+            const adapter = adaptersRef.current[platform] ?? defaultAdapters[platform];
+            const days = await adapter.fetchActivity(usernamesRef.current[platform], controller.signal, year);
+            return { platform, days };
         }))
-            .then((results) => setActivity(results.flat()))
+            .then((results) => setActivityByPlatform((current) => {
+            const next = { ...current };
+            for (const result of results)
+                next[result.platform] = result.days;
+            return next;
+        }))
             .catch((reason) => {
             if (reason.name !== 'AbortError')
                 setError(reason instanceof Error ? reason.message : 'Unable to load activity');
         })
             .finally(() => setLoading(false));
         return () => controller.abort();
-    }, [adapters, selected, usernames, year]);
+    }, [availablePlatforms, reloadNonce, selected, usernameKey, year]);
     const counts = useMemo(() => {
         const merged = new Map();
-        for (const item of activity) {
-            const current = merged.get(item.date) ?? { count: 0, platforms: {} };
-            current.count += item.count;
-            for (const platform of selected)
-                current.platforms[platform] = (current.platforms[platform] ?? 0) + (item.platforms?.[platform] ?? 0);
-            merged.set(item.date, current);
+        for (const platform of selected) {
+            for (const item of activityByPlatform[platform] ?? []) {
+                const current = merged.get(item.date) ?? { count: 0, platforms: {} };
+                current.count += item.count;
+                current.platforms[platform] = (current.platforms[platform] ?? 0) + (item.platforms?.[platform] ?? item.count);
+                merged.set(item.date, current);
+            }
         }
         return merged;
-    }, [activity, selected]);
+    }, [activityByPlatform, selected]);
     const maxCount = Math.max(1, ...[...counts.values()].map((item) => item.count));
     const toggle = (platform) => setSelected((current) => current.includes(platform) ? current.filter((item) => item !== platform) : [...current, platform]);
-    return (_jsxs("section", { className: className, style: { ...componentStyles.root, ...style }, "aria-label": `${title} activity map`, children: [_jsxs("div", { style: componentStyles.header, children: [_jsxs("div", { children: [_jsx("h2", { style: componentStyles.title, children: title }), _jsxs("p", { style: componentStyles.subtitle, children: [year, " \u00B7 ", selected.length, " platform", selected.length === 1 ? '' : 's'] })] }), _jsx("div", { style: componentStyles.controls, role: "group", "aria-label": "Activity platforms", children: allPlatforms.map((platform) => {
+    const reload = (platform) => {
+        reloadPlatformRef.current = platform;
+        setReloadNonce((current) => current + 1);
+    };
+    return (_jsxs("section", { className: className, style: { ...componentStyles.root, ...style }, "aria-label": `${title} activity map`, children: [_jsxs("div", { style: componentStyles.header, children: [_jsxs("div", { children: [_jsx("h2", { style: componentStyles.title, children: title }), _jsxs("p", { style: componentStyles.subtitle, children: [year, " \u00B7 ", selected.length, " platform", selected.length === 1 ? '' : 's'] })] }), _jsx("div", { style: componentStyles.controls, role: "group", "aria-label": "Activity platforms", children: availablePlatforms.map((platform) => {
                             const active = selected.includes(platform);
-                            return _jsxs("button", { type: "button", "aria-pressed": active, onClick: () => toggle(platform), style: { ...componentStyles.toggle, borderColor: active ? componentColors[platform] : '#334351', color: active ? '#fff' : '#9aabb8' }, children: [_jsx("span", { "aria-hidden": "true", style: { ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' } }), platformLabels[platform]] }, platform);
+                            return _jsxs("span", { style: { display: 'inline-flex', alignItems: 'center' }, children: [_jsxs("button", { type: "button", "aria-pressed": active, onClick: () => toggle(platform), style: { ...componentStyles.toggle, borderColor: active ? componentColors[platform] : '#334351', color: active ? '#fff' : '#9aabb8' }, children: [_jsx("span", { "aria-hidden": "true", style: { ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' } }), platformLabels[platform]] }), _jsx("button", { type: "button", "aria-label": `Reload ${platformLabels[platform]} activity`, title: `Reload ${platformLabels[platform]} activity`, onClick: () => reload(platform), style: componentStyles.reload, children: "\u21BB" })] }, platform);
                         }) })] }), _jsx("div", { style: componentStyles.gridWrap, children: _jsx("div", { style: componentStyles.grid, role: "grid", "aria-label": `${year} daily activity`, children: days.map((day) => {
                         const item = counts.get(day);
                         const intensity = item ? Math.min(1, item.count / maxCount) : 0;

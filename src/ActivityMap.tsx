@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultAdapters } from './adapters';
 import type { ActivityDay, ActivityMapColors, ActivityMapProps, ActivityMapStyles, Platform } from './types';
 
@@ -40,6 +40,7 @@ const defaultStyles: Required<ActivityMapStyles> = {
   subtitle: { color: '#8fa0ad', fontSize: 13, margin: '5px 0 0' },
   controls: { display: 'flex', flexWrap: 'wrap' as const, gap: 8 },
   toggle: { alignItems: 'center', background: '#18222c', border: '1px solid #334351', borderRadius: 6, color: '#cbd6df', cursor: 'pointer', display: 'inline-flex', fontSize: 12, gap: 7, padding: '7px 9px' },
+  reload: { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 4, color: '#8fa0ad', cursor: 'pointer', display: 'inline-flex', fontSize: 16, height: 28, justifyContent: 'center', marginLeft: -4, padding: 0, width: 28 },
   gridWrap: { marginTop: 24, overflowX: 'auto' as const, paddingBottom: 4 },
   grid: { display: 'grid', gridAutoFlow: 'column' as const, gridTemplateRows: 'repeat(7, 13px)', gap: 3, minWidth: 700 },
   cell: { borderRadius: 2, height: 13, width: 13 },
@@ -70,44 +71,66 @@ export function ActivityMap({
   title = 'Coding activity',
   showLegend = true
 }: ActivityMapProps) {
-  const [selected, setSelected] = useState<Platform[]>(initialPlatforms.filter((platform) => allPlatforms.includes(platform)));
-  const [activity, setActivity] = useState<ActivityDay[]>([]);
+  const usernameKey = allPlatforms.map((platform) => `${platform}:${usernames[platform] ?? ''}`).join('|');
+  const availablePlatforms = useMemo(() => allPlatforms.filter((platform) => Boolean(usernames[platform]?.trim())), [usernameKey]);
+  const [selected, setSelected] = useState<Platform[]>(initialPlatforms.filter((platform) => allPlatforms.includes(platform) && Boolean(usernames[platform]?.trim())));
+  const [activityByPlatform, setActivityByPlatform] = useState<Partial<Record<Platform, ActivityDay[]>>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const usernamesRef = useRef(usernames);
+  const adaptersRef = useRef(adapters);
+  const reloadPlatformRef = useRef<Platform | null>(null);
+  usernamesRef.current = usernames;
+  adaptersRef.current = adapters;
   const days = useMemo(() => makeDays(year), [year]);
   const componentStyles = { ...defaultStyles, ...styles };
   const componentColors = { ...defaultColors, ...colors };
 
   useEffect(() => {
     const controller = new AbortController();
-    const activePlatforms = selected.filter((platform) => usernames[platform]);
+    const activePlatforms = selected.filter((platform) => availablePlatforms.includes(platform));
+    const requestedPlatform = reloadPlatformRef.current;
+    reloadPlatformRef.current = null;
+    const platformsToFetch = requestedPlatform && activePlatforms.includes(requestedPlatform) ? [requestedPlatform] : activePlatforms;
     setLoading(true);
     setError(null);
-    Promise.all(activePlatforms.map(async (platform) => {
-      const adapter = adapters[platform] ?? defaultAdapters[platform];
-      return adapter.fetchActivity(usernames[platform]!, controller.signal, year);
+    Promise.all(platformsToFetch.map(async (platform) => {
+      const adapter = adaptersRef.current[platform] ?? defaultAdapters[platform];
+      const days = await adapter.fetchActivity(usernamesRef.current[platform]!, controller.signal, year);
+      return { platform, days };
     }))
-      .then((results) => setActivity(results.flat()))
+      .then((results) => setActivityByPlatform((current) => {
+        const next = { ...current };
+        for (const result of results) next[result.platform] = result.days;
+        return next;
+      }))
       .catch((reason: unknown) => {
         if ((reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Unable to load activity');
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [adapters, selected, usernames, year]);
+  }, [availablePlatforms, reloadNonce, selected, usernameKey, year]);
 
   const counts = useMemo(() => {
     const merged = new Map<string, { count: number; platforms: Partial<Record<Platform, number>> }>();
-    for (const item of activity) {
-      const current = merged.get(item.date) ?? { count: 0, platforms: {} };
-      current.count += item.count;
-      for (const platform of selected) current.platforms[platform] = (current.platforms[platform] ?? 0) + (item.platforms?.[platform] ?? 0);
-      merged.set(item.date, current);
+    for (const platform of selected) {
+      for (const item of activityByPlatform[platform] ?? []) {
+        const current = merged.get(item.date) ?? { count: 0, platforms: {} };
+        current.count += item.count;
+        current.platforms[platform] = (current.platforms[platform] ?? 0) + (item.platforms?.[platform] ?? item.count);
+        merged.set(item.date, current);
+      }
     }
     return merged;
-  }, [activity, selected]);
+  }, [activityByPlatform, selected]);
 
   const maxCount = Math.max(1, ...[...counts.values()].map((item) => item.count));
   const toggle = (platform: Platform) => setSelected((current) => current.includes(platform) ? current.filter((item) => item !== platform) : [...current, platform]);
+  const reload = (platform: Platform) => {
+    reloadPlatformRef.current = platform;
+    setReloadNonce((current) => current + 1);
+  };
 
   return (
     <section className={className} style={{ ...componentStyles.root, ...style }} aria-label={`${title} activity map`}>
@@ -117,12 +140,17 @@ export function ActivityMap({
           <p style={componentStyles.subtitle}>{year} · {selected.length} platform{selected.length === 1 ? '' : 's'}</p>
         </div>
         <div style={componentStyles.controls} role="group" aria-label="Activity platforms">
-          {allPlatforms.map((platform) => {
+          {availablePlatforms.map((platform) => {
             const active = selected.includes(platform);
-            return <button key={platform} type="button" aria-pressed={active} onClick={() => toggle(platform)} style={{ ...componentStyles.toggle, borderColor: active ? componentColors[platform] : '#334351', color: active ? '#fff' : '#9aabb8' }}>
-              <span aria-hidden="true" style={{ ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' }} />
-              {platformLabels[platform]}
-            </button>;
+            return <span key={platform} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <button type="button" aria-pressed={active} onClick={() => toggle(platform)} style={{ ...componentStyles.toggle, borderColor: active ? componentColors[platform] : '#334351', color: active ? '#fff' : '#9aabb8' }}>
+                <span aria-hidden="true" style={{ ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' }} />
+                {platformLabels[platform]}
+              </button>
+              <button type="button" aria-label={`Reload ${platformLabels[platform]} activity`} title={`Reload ${platformLabels[platform]} activity`} onClick={() => reload(platform)} style={componentStyles.reload}>
+                &#x21bb;
+              </button>
+            </span>;
           })}
         </div>
       </div>
