@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { defaultAdapters } from './adapters';
-import type { ActivityDay, ActivityMapColors, ActivityMapProps, ActivityMapStyles, Platform } from './types';
+import { defaultAdapters } from './adapters.js';
+import type { ActivityDay, ActivityMapColors, ActivityMapProps, ActivityMapStyles, Platform } from './types.js';
 
 const platformLabels: Record<Platform, string> = {
   leetcode: 'LeetCode',

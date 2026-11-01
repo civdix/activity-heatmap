@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { defaultAdapters } from './adapters';
+import { defaultAdapters } from './adapters.js';
 const platformLabels = {
     leetcode: 'LeetCode',
     github: 'GitHub',

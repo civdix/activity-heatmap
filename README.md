@@ -191,6 +191,54 @@ The helper sends `handle` and `year` query parameters and expects your backend t
 
 Your backend can then call the GeeksforGeeks or LeetCode endpoint server-side, where CORS does not apply, and cache the result before returning it to the portfolio.
 
+For Next.js, add `app/api/activity/[platform]/route.ts` to implement that backend route:
+
+```ts
+import { fetchPlatformActivity } from 'coding-activity-map/server';
+import type { Platform } from 'coding-activity-map';
+
+const supportedPlatforms: Platform[] = [
+  'leetcode',
+  'github',
+  'codeforces',
+  'geeksforgeeks'
+];
+
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ platform: string }> }
+) {
+  const { platform } = await context.params;
+  const url = new URL(request.url);
+  const username = url.searchParams.get('handle');
+  const year = Number(url.searchParams.get('year'));
+
+  if (!supportedPlatforms.includes(platform as Platform) || !username || !Number.isInteger(year)) {
+    return Response.json({ error: 'Invalid platform, handle, or year' }, { status: 400 });
+  }
+
+  try {
+    const activity = await fetchPlatformActivity(platform as Platform, username, year);
+    return Response.json(activity, { headers: { 'Cache-Control': 's-maxage=3600' } });
+  } catch {
+    return Response.json({ error: 'Unable to load activity' }, { status: 502 });
+  }
+}
+```
+
+Then point the component at the route:
+
+```tsx
+const adapters = Object.fromEntries(
+  (['leetcode', 'github', 'codeforces', 'geeksforgeeks'] as const).map((platform) => [
+    platform,
+    createProxyAdapter(platform, `/api/activity/${platform}`)
+  ])
+);
+
+<ActivityMap usernames={usernames} adapters={adapters} />
+```
+
 ## Built-in endpoints and production considerations
 
 The built-in adapters currently use these endpoints:
