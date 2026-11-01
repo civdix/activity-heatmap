@@ -1,6 +1,6 @@
 const validDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 const normalize = (platform, values) => values
-    .filter((item) => validDate(item.date) && Number.isFinite(item.count))
+    .filter((item) => validDate(item.date) && Number.isFinite(item.count) && item.count > 0)
     .map((item) => ({
     date: item.date,
     count: Math.max(0, Math.round(item.count)),
@@ -77,7 +77,12 @@ const geeksforgeeks = {
         if (!response.ok)
             throw new Error(`GeeksforGeeks returned ${response.status}`);
         const payload = (await response.json());
-        const records = (Array.isArray(payload) ? payload : payload.result ?? payload.data ?? payload.submissions ?? []);
+        const rawRecords = Array.isArray(payload) ? payload : payload.result ?? payload.data ?? payload.submissions ?? [];
+        const records = Array.isArray(rawRecords)
+            ? rawRecords
+            : rawRecords && typeof rawRecords === 'object'
+                ? Object.entries(rawRecords).map(([date, count]) => ({ date, count }))
+                : [];
         return normalize('geeksforgeeks', records.map((record) => ({
             date: String(record.date ?? record.submissionDate ?? record.submittedAt ?? ''),
             count: Number(record.count ?? record.submissionCount ?? record.submissions ?? 1)

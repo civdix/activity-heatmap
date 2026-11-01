@@ -4,7 +4,7 @@ const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 const normalize = (platform: Platform, values: ActivityDay[]): ActivityDay[] =>
   values
-    .filter((item) => validDate(item.date) && Number.isFinite(item.count))
+    .filter((item) => validDate(item.date) && Number.isFinite(item.count) && item.count > 0)
     .map((item) => ({
       date: item.date,
       count: Math.max(0, Math.round(item.count)),
@@ -86,7 +86,12 @@ const geeksforgeeks: ActivityAdapter = {
       data?: unknown;
       submissions?: unknown;
     };
-    const records = (Array.isArray(payload) ? payload : payload.result ?? payload.data ?? payload.submissions ?? []) as Array<Record<string, unknown>>;
+    const rawRecords = Array.isArray(payload) ? payload : payload.result ?? payload.data ?? payload.submissions ?? [];
+    const records: Array<Record<string, unknown>> = Array.isArray(rawRecords)
+      ? rawRecords as Array<Record<string, unknown>>
+      : rawRecords && typeof rawRecords === 'object'
+        ? Object.entries(rawRecords as Record<string, unknown>).map(([date, count]) => ({ date, count }))
+        : [];
     return normalize('geeksforgeeks', records.map((record) => ({
       date: String(record.date ?? record.submissionDate ?? record.submittedAt ?? ''),
       count: Number(record.count ?? record.submissionCount ?? record.submissions ?? 1)

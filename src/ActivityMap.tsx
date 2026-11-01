@@ -92,7 +92,7 @@ export function ActivityMap({
     const activePlatforms = selected.filter((platform) => availablePlatforms.includes(platform));
     const requestedPlatform = reloadPlatformRef.current;
     reloadPlatformRef.current = null;
-    const platformsToFetch = requestedPlatform && activePlatforms.includes(requestedPlatform) ? [requestedPlatform] : activePlatforms;
+    const platformsToFetch = requestedPlatform && availablePlatforms.includes(requestedPlatform) ? [requestedPlatform] : activePlatforms;
     setLoading(true);
     setError(null);
     Promise.all(platformsToFetch.map(async (platform) => {
