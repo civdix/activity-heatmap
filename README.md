@@ -42,7 +42,7 @@ Create one endpoint per platform, or one dynamic endpoint, that accepts `handle`
 ]
 ```
 
-The endpoint should call `fetchPlatformActivity` from `coding-activity-map/server` on the server and return the result. A complete Next.js route example is included in [Same-origin proxy adapter](#same-origin-proxy-adapter).
+The endpoint should call `fetchPlatformActivity` from `coding-activity-map/server` on the server and return the result. The package works with any React framework and backend; a complete Next.js route example is included in [Same-origin proxy adapter](#same-origin-proxy-adapter).
 
 ## Basic usage
 
@@ -227,7 +227,7 @@ The helper sends `handle` and `year` query parameters and expects your backend t
 
 Your backend can then call the GeeksforGeeks or LeetCode endpoint server-side, where CORS does not apply, and cache the result before returning it to the portfolio.
 
-For Next.js, add `app/api/activity/[platform]/route.ts` to implement that backend route:
+For example, in Next.js, add `app/api/activity/[platform]/route.ts` to implement that backend route. Other frameworks can expose the same `GET` contract through their own routing system:
 
 ```ts
 import { fetchPlatformActivity } from 'coding-activity-map/server';
@@ -294,9 +294,21 @@ Never put private API keys, GitHub tokens, or other secrets in the portfolio's c
 npm install
 npm run typecheck
 npm run build
+npm test
 ```
 
 The compiled package is written to `dist/`.
+
+## Publishing
+
+Before publishing, run `npm test` and inspect the package contents with `npm pack --dry-run`. Then authenticate with npm and publish the package:
+
+```bash
+npm login
+npm publish
+```
+
+The `prepublishOnly` script runs the build and tests automatically before publishing.
 
 ## Contributing
 
