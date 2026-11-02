@@ -15,17 +15,13 @@ Thank you for choosing `coding-activity-map`. You are welcome to improve the pac
 
 ## Installation
 
-From npm:
+Install the published package from npm:
 
 ```bash
 npm install coding-activity-map
 ```
 
-From GitHub while the package is not published to npm:
-
-```bash
-npm install github:civdix/activity-heatmap
-```
+See the package page on [npm](https://www.npmjs.com/package/coding-activity-map) for published versions.
 
 The package has React as a peer dependency, so your portfolio must already use React.
 
@@ -299,12 +295,12 @@ npm test
 
 The compiled package is written to `dist/`.
 
-## Publishing
+## Releasing updates
 
-Before publishing, run `npm test` and inspect the package contents with `npm pack --dry-run`. Then authenticate with npm and publish the package:
+Before releasing an update, run `npm test` and inspect the package contents with `npm pack --dry-run`. Then increment the package version, authenticate with npm, and publish:
 
 ```bash
-npm login
+npm version patch
 npm publish
 ```
 
