@@ -29,10 +29,30 @@ npm install github:civdix/activity-heatmap
 
 The package has React as a peer dependency, so your portfolio must already use React.
 
+## API endpoint setup
+
+Browser applications should use a same-origin API endpoint for activity requests. LeetCode and GeeksforGeeks may reject browser requests because of CORS, and a server-side route also keeps provider requests and caching under your control. This package does not create that route for you.
+
+Create one endpoint per platform, or one dynamic endpoint, that accepts `handle` and `year` query parameters and returns an array of daily activity records:
+
+```json
+[
+  { "date": "2025-01-01", "count": 3 },
+  { "date": "2025-01-02", "count": 1 }
+]
+```
+
+The endpoint should call `fetchPlatformActivity` from `coding-activity-map/server` on the server and return the result. A complete Next.js route example is included in [Same-origin proxy adapter](#same-origin-proxy-adapter).
+
 ## Basic usage
 
 ```tsx
-import { ActivityMap } from 'coding-activity-map';
+import { ActivityMap, createProxyAdapter } from 'coding-activity-map';
+
+const adapters = {
+  github: createProxyAdapter('github', '/api/activity/github'),
+  leetcode: createProxyAdapter('leetcode', '/api/activity/leetcode')
+};
 
 export function Portfolio() {
   return (
@@ -42,13 +62,14 @@ export function Portfolio() {
         leetcode: 'your-leetcode-username'
       }}
       initialPlatforms={['github', 'leetcode']}
+      adapters={adapters}
       year={2025}
     />
   );
 }
 ```
 
-Only selected platforms with a configured username are fetched. The component displays controls for all four supported platforms; visitors can select or deselect them as needed.
+Only selected platforms with a configured username are fetched. The component displays controls for all four supported platforms; visitors can select or deselect them as needed. The endpoint paths in `adapters` must match routes implemented by your application.
 
 ## Platform combinations
 
@@ -88,7 +109,9 @@ Use `style` for the outer element, or override individual internal slots with `s
   styles={{
     root: { background: '#fff', color: '#16202a', borderRadius: 4 },
     title: { fontFamily: 'Georgia, serif', fontSize: 24 },
-    toggle: { borderRadius: 999 }
+    toggle: { borderRadius: 999 },
+    toggleActive: { color: 'var(--foreground)' },
+    toggleInactive: { color: 'var(--muted-foreground)' }
   }}
   colors={{
     high: '#e85d75',
@@ -99,7 +122,20 @@ Use `style` for the outer element, or override individual internal slots with `s
 />
 ```
 
-The activity is presented as a compact horizontal contribution strip with seven day rows, week columns, and month labels below each month. Available style slots are `root`, `header`, `title`, `subtitle`, `controls`, `toggle`, `reload`, `gridWrap`, `grid`, `month`, `monthTitle`, `weekdays`, `weekday`, `monthGrid`, `cell`, `legend`, `dot`, and `status`.
+The activity is presented as a compact horizontal contribution strip with seven day rows, week columns, and month labels below each month. Available style slots are `root`, `header`, `title`, `subtitle`, `controls`, `toggle`, `toggleActive`, `toggleInactive`, `reload`, `gridWrap`, `grid`, `month`, `monthTitle`, `weekdays`, `weekday`, `monthGrid`, `cell`, `legend`, `dot`, and `status`. `toggle` is the base style; `toggleActive` and `toggleInactive` are applied according to `aria-pressed` and can set state-specific colors without hard-coded inline colors overriding them.
+
+To select every configured platform initially, pass all of their platform keys through `initialPlatforms`. Invalid keys and platforms without a username are ignored:
+
+```tsx
+<ActivityMap
+  usernames={{
+    github: 'civdix',
+    leetcode: 'goingtofar',
+    geeksforgeeks: 'shivamdixit11'
+  }}
+  initialPlatforms={['github', 'leetcode', 'geeksforgeeks']}
+/>
+```
 
 Available color keys are the four platform names plus `empty`, `low`, and `high`.
 

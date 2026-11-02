@@ -16,6 +16,8 @@ export type ActivityMapStyles = Partial<{
     subtitle: CSSProperties;
     controls: CSSProperties;
     toggle: CSSProperties;
+    toggleActive: CSSProperties;
+    toggleInactive: CSSProperties;
     reload: CSSProperties;
     gridWrap: CSSProperties;
     grid: CSSProperties;

@@ -36,6 +36,8 @@ const defaultStyles = {
     subtitle: { color: '#8fa0ad', fontSize: 13, margin: '5px 0 0' },
     controls: { display: 'flex', flexWrap: 'wrap', gap: 8 },
     toggle: { alignItems: 'center', background: '#18222c', border: '1px solid #334351', borderRadius: 6, color: '#cbd6df', cursor: 'pointer', display: 'inline-flex', fontSize: 12, gap: 7, padding: '7px 9px' },
+    toggleActive: { color: '#fff' },
+    toggleInactive: { color: '#9aabb8' },
     reload: { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 4, color: '#8fa0ad', cursor: 'pointer', display: 'inline-flex', fontSize: 16, height: 28, justifyContent: 'center', marginLeft: -4, padding: 0, width: 28 },
     gridWrap: { marginTop: 24, overflowX: 'auto', paddingBottom: 4 },
     grid: { display: 'grid', gridAutoFlow: 'column', gridTemplateRows: 'repeat(7, 13px)', gap: 3, minWidth: 700 },
@@ -58,10 +60,14 @@ const defaultColors = {
     low: '#387d57',
     high: '#72d39a'
 };
-export function ActivityMap({ usernames, initialPlatforms = Object.keys(usernames), adapters = {}, year = new Date().getFullYear(), className, style, styles = {}, colors = {}, title = 'Coding activity', showLegend = true }) {
+const getInitialPlatforms = (usernames, initialPlatforms) => {
+    const requestedPlatforms = initialPlatforms ?? allPlatforms;
+    return requestedPlatforms.filter((platform) => allPlatforms.includes(platform) && Boolean(usernames[platform]?.trim()));
+};
+export function ActivityMap({ usernames, initialPlatforms, adapters = {}, year = new Date().getFullYear(), className, style, styles = {}, colors = {}, title = 'Coding activity', showLegend = true }) {
     const usernameKey = allPlatforms.map((platform) => `${platform}:${usernames[platform] ?? ''}`).join('|');
     const availablePlatforms = useMemo(() => allPlatforms.filter((platform) => Boolean(usernames[platform]?.trim())), [usernameKey]);
-    const [selected, setSelected] = useState(initialPlatforms.filter((platform) => allPlatforms.includes(platform) && Boolean(usernames[platform]?.trim())));
+    const [selected, setSelected] = useState(getInitialPlatforms(usernames, initialPlatforms));
     const [activityByPlatform, setActivityByPlatform] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -120,7 +126,11 @@ export function ActivityMap({ usernames, initialPlatforms = Object.keys(username
     };
     return (_jsxs("section", { className: className, style: { ...componentStyles.root, ...style }, "aria-label": `${title} activity map`, children: [_jsxs("div", { style: componentStyles.header, children: [_jsxs("div", { children: [_jsx("h2", { style: componentStyles.title, children: title }), _jsxs("p", { style: componentStyles.subtitle, children: [year, " \u00B7 ", selected.length, " platform", selected.length === 1 ? '' : 's'] })] }), _jsx("div", { style: componentStyles.controls, role: "group", "aria-label": "Activity platforms", children: availablePlatforms.map((platform) => {
                             const active = selected.includes(platform);
-                            return _jsxs("span", { style: { display: 'inline-flex', alignItems: 'center' }, children: [_jsxs("button", { type: "button", "aria-pressed": active, onClick: () => toggle(platform), style: { ...componentStyles.toggle, borderColor: active ? componentColors[platform] : '#334351', color: active ? '#fff' : '#9aabb8' }, children: [_jsx("span", { "aria-hidden": "true", style: { ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' } }), platformLabels[platform]] }), _jsx("button", { type: "button", "aria-label": `Reload ${platformLabels[platform]} activity`, title: `Reload ${platformLabels[platform]} activity`, onClick: () => reload(platform), style: componentStyles.reload, children: "\u21BB" })] }, platform);
+                            const toggleStateStyles = active ? componentStyles.toggleActive : componentStyles.toggleInactive;
+                            const toggleColor = active
+                                ? styles.toggleActive?.color ?? styles.toggle?.color ?? defaultStyles.toggleActive.color
+                                : styles.toggleInactive?.color ?? styles.toggle?.color ?? defaultStyles.toggleInactive.color;
+                            return _jsxs("span", { style: { display: 'inline-flex', alignItems: 'center' }, children: [_jsxs("button", { type: "button", "aria-pressed": active, onClick: () => toggle(platform), style: { ...componentStyles.toggle, ...toggleStateStyles, color: toggleColor, borderColor: styles.toggle?.borderColor ?? (active ? componentColors[platform] : '#334351') }, children: [_jsx("span", { "aria-hidden": "true", style: { ...componentStyles.dot, background: active ? componentColors[platform] : '#53616c' } }), platformLabels[platform]] }), _jsx("button", { type: "button", "aria-label": `Reload ${platformLabels[platform]} activity`, title: `Reload ${platformLabels[platform]} activity`, onClick: () => reload(platform), style: componentStyles.reload, children: "\u21BB" })] }, platform);
                         }) })] }), _jsx("div", { style: componentStyles.gridWrap, children: _jsx("div", { style: { display: 'flex', gap: 16, minWidth: 'max-content', padding: '4px 8px 0' }, role: "grid", "aria-label": `${year} monthly activity`, children: months.map((month) => _jsxs("section", { style: componentStyles.month, "aria-label": `${month.label} ${year}`, children: [_jsx("div", { style: componentStyles.monthGrid, children: month.weeks.flatMap((week) => week).map((day, index) => {
                                     const item = day ? counts.get(day) : undefined;
                                     const intensity = item ? Math.min(1, item.count / maxCount) : 0;
